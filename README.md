@@ -14,7 +14,7 @@ services.AddSingleton<StateService>();
 services.AddScoped<StateServiec>();
 ```
 
-We want to be explicit here and do not want to mistakenly give service a singleton since that would make it available for all users in the app. Since WASM gets downloaded per client adding a singleton makes sense.
+We want to be explicit here and do not want to mistakenly give Blazor Server a singleton since that would make it available for all users in the app. Since WASM gets downloaded per client adding a singleton makes sense.
 
 Inject the StateService into your components.
 ```C#
