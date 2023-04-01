@@ -12,8 +12,9 @@ services.AddSingleton<StateService>();
 Inject the StateService into your components.
 ```C#
 @inject StateService State
-Use the StateService to get and set state, and subscribe to changes.
 ```
+Use the StateService to get and set state, and subscribe to changes.
+
 #### Set state
 ```C#
 State.Set("myKey", "myValue");
