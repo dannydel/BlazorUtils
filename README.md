@@ -5,9 +5,16 @@ A few different code snippets that can eventually become a project of .NET Blazo
 Here's how you can use it in your components:
 
 ### Register the StateService in your DI container.
-```C#
+*This is project dependent
+```C# - Blazor WASM
 services.AddSingleton<StateService>();
 ```
+
+```C# Blazor - Service
+services.AddScoped<StateServiec>();
+```
+
+We want to be explicit here and do not want to mistakenly give service a singleton since that would make it available for all users in the app. Since WASM gets downloaded per client adding a singleton makes sense.
 
 Inject the StateService into your components.
 ```C#
