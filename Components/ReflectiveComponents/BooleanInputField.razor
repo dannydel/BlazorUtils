@@ -1,0 +1,89 @@
+﻿@inherits BaseInputField
+
+<MudElement HtmlTag="div">
+	<MudCheckBox Class="@Class"
+				 @bind-Checked="@Checked"
+				 Label="@Label"
+				 Required="@Required"
+				 RequiredError="@(CommonFunctions.RequiredErrorMessage)"
+				 ReadOnly=@ReadOnly
+				 Dense="true"
+				 Disabled="@(Disabled || @ReadOnly)" />
+</MudElement>
+
+
+@code {
+	[Parameter]
+	public Action? OnChangeEvent { get; set; }
+
+	public readonly DisplayInputType DisplayInputType = DisplayInputType.BooleanInput;
+
+	private bool _checked;
+	public bool Checked
+	{
+		get => _checked;
+		set
+		{
+			UpdateCheckedValue(value);
+		}
+	}
+
+	protected override void OnParametersSet()
+	{
+		base.OnParametersSet();
+
+		if (PropertyInfo == null)
+		{
+			PropertyInfo = PropertyObject!.GetType().GetProperty(PropertyName!);
+		}
+
+		_checked = PropertyObject == null ? false : bool.Parse(PropertyInfo!.GetValue(PropertyObject)!.ToString() ?? "false");
+
+		StateHasChanged();
+	}
+
+	protected override void OnAfterRender(bool firstRender)
+	{
+		if (firstRender)
+		{
+			if (FireFirstRenderChangeEvent)
+			{
+				UpdateCheckedValue(_checked);
+			}
+		}
+	}
+
+	private void UpdateCheckedValue(bool value)
+	{
+		_checked = value;
+
+		if (PropertyObject != null)
+		{
+			PropertyInfo!.SetValue(PropertyObject, value);
+		}
+
+		if (UpdateField != null)
+		{
+			var updatedValueProp = PropertyObject!.GetType().GetProperty(UpdateField.Value.Key);
+
+			if (updatedValueProp != null)
+			{
+				if (!value)
+				{
+					updatedValueProp.SetValue(PropertyObject, null);
+				}
+				else
+				{
+					updatedValueProp.SetValue(PropertyObject, UpdateField.Value.Value);
+				}
+			}
+		}
+
+		if (Required)
+		{
+			_ = LoanSvc!.ValidateLoan();
+		}
+
+		OnChangeEvent?.Invoke();
+	}
+}

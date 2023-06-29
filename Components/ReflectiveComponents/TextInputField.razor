@@ -1,0 +1,145 @@
+﻿@typeparam T
+@inherits BaseInputField
+
+<MudElement HtmlTag="div">
+	<AmresText Typo="AmresTypo.Title12">
+		@Label
+		@if (Required)
+		{
+			<span class="mud-error-text"> *</span>
+		}
+	</AmresText>
+	<MudTextField InputType="@InputType"
+				  T="T"
+				  Variant="Variant.Outlined"
+				  @bind-Value="Value"
+				  Class="@Class"
+				  Margin="Margin.Dense"
+				  Style="@Style"
+				  InputMode="@InputMode"
+				  Format="@Format"
+				  Culture="@Culture"
+				  MaxLength="@MaxLength"
+				  Adornment="@Adornment"
+				  AdornmentIcon="@AdornmentIcon"
+				  Disabled="@Disabled"
+				  ReadOnly="@ReadOnly"
+				  Placeholder="@Placeholder"
+				  Required="@Required"
+				  RequiredError="@RequiredMessage"
+				  DebounceInterval="@DebounceInterval"
+				  Mask="@Mask" />
+</MudElement>
+
+@code
+{
+	[Parameter]
+	public Action? OnChangeEvent { get; set; }
+
+	[Parameter]
+	public MudBlazor.Converter<T, string>? Converter { get; set; }
+
+	// If the input value is dateonly but we want to treat it as a datetime
+	private bool _dateOnlyMask { get; set; } = false;
+
+	private T? _value;
+	public T? Value
+	{
+		get => _value;
+		set
+		{
+			_dateOnlyMask = IsDateType();
+			TextChanged(value);
+		}	
+	}
+
+	public readonly DisplayInputType DisplayInputType = DisplayInputType.TextInput;
+
+	protected override void OnParametersSet()
+	{
+		base.OnParametersSet();
+
+		T? propValue;
+
+		if (PropertyInfo == null)
+		{
+			PropertyInfo = PropertyObject!.GetType().GetProperty(PropertyName!);
+		}
+
+		if (PropertyObject is null)
+		{
+			propValue = default(T);
+		}
+		else
+		{
+			object? tempValue = PropertyInfo!.GetValue(PropertyObject);
+			if (tempValue != null && tempValue.GetType() == typeof(DateOnly) && typeof(T) == typeof(DateTime))
+			{
+				_dateOnlyMask = true;
+				propValue = (T)(object)DateTime.Parse(tempValue?.ToString() ?? DateTime.Now.ToString());
+			}
+			else if (tempValue != null && tempValue.GetType() == typeof(DateOnly))
+			{
+				_dateOnlyMask = true;
+				propValue = (T)(object)DateOnly.FromDateTime(DateTime.Parse(tempValue?.ToString() ?? DateTime.Now.ToString()));
+			}
+			else
+			{
+				propValue = tempValue == null ? default(T) : (T)tempValue;
+			}
+		}
+
+		if (IsDateType() && string.IsNullOrEmpty(Format))
+		{
+			Format = "yyyy-MM-dd";
+		}
+
+		_value = propValue;
+
+		StateHasChanged();
+	}
+
+	private void TextChanged(T? newValue)
+	{
+		_value = newValue;
+
+		if (newValue != null)
+		{
+			if (_dateOnlyMask)
+			{
+				PropertyInfo!.SetValue(PropertyObject, DateOnly.FromDateTime((DateTime.Parse(newValue.ToString() ?? DateTime.Now.ToString())).Date));
+			}
+			else
+			{
+				PropertyInfo!.SetValue(PropertyObject, newValue);
+			}
+
+			OnChangeEvent?.Invoke();
+
+			if (Required)
+			{
+				_ = LoanSvc!.ValidateLoan();
+			}
+
+			StateHasChanged();
+		}
+		else if (PropertyInfo!.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>) && newValue is null)
+		{
+			PropertyInfo!.SetValue(PropertyObject, null);
+			OnChangeEvent?.Invoke();
+
+			if (Required)
+			{
+				_ = LoanSvc!.ValidateLoan();
+			}
+
+			StateHasChanged();
+		}
+	}
+
+	private bool IsDateType()
+	{
+		return PropertyInfo!.PropertyType.IsGenericType && PropertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>)
+			&& (typeof(T) == typeof(DateTime) || typeof(T) == typeof(DateTimeOffset) || typeof(T) == typeof(DateOnly));
+	}
+}

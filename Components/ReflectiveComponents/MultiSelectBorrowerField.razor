@@ -1,0 +1,317 @@
+﻿@typeparam T
+@inject LoanService LoanService
+@using Borrower = WebPortal.Models.Borrower
+
+<MudElement HtmlTag="div">
+	<AmresText Typo="AmresTypo.Title12">
+		@Label
+		@if (Required)
+		{
+			<span class="mud-error-text"> *</span>
+		}
+	</AmresText>
+	<MudSelect T="WebPortal.Models.Borrower"
+			Class="Class"
+			MultiSelection="true"
+			Clearable="true"
+			SelectAll="true"
+			ToStringFunc="@(e=> e == null ? null : e.FullName)"
+			SelectedValues="SelectedItems"
+			SelectedValuesChanged="ValueChanged"
+			Variant="Variant.Outlined"
+			Margin="Margin.Dense"
+			ReadOnly="!Editable"
+			Disabled="!Editable"
+			Required="Required" >
+		@foreach (var item in Items)
+		{
+			<MudSelectItem T="Borrower" Value="@item">@item.FullName</MudSelectItem>
+		}
+	</MudSelect>
+</MudElement>
+
+@code {
+	[CascadingParameter]
+	public bool Editable{ get; set; }
+
+	[Parameter]
+	public Action? OnChangeEvent { get; set; }
+
+	[Parameter, EditorRequired]
+	public List<Borrower> Items { get; set; } = new();
+
+	[Parameter, EditorRequired]
+	public IDatabasePromise LinkingObject { get; set; } = default!;
+
+	[Parameter]
+	public string Label { get; set; } = "Select";
+
+	[Parameter]
+	public bool Required {get; set;} 
+
+	[Parameter]
+	public bool ReadOnly{ get; set; }
+
+	private string? Class{ get; set; }
+
+	public IEnumerable<Borrower> SelectedItems { get; set; } = new HashSet<Borrower>();
+
+	protected override void OnParametersSet()
+	{
+		List<Borrower> borrowers = Items;
+
+		var type = LinkingObject!.GetType();
+
+		switch (type)
+		{
+			case Type _ when type == typeof(Asset):
+				SelectedItems = borrowers.Where(borrower => borrower.BorrowerAssets.Any(asset => asset.AssetId == LinkingObject.Id));
+				break;
+			case Type _ when type == typeof(Gift):
+				SelectedItems = borrowers.Where(borrower => borrower.BorrowerGifts.Any(asset => asset.GiftId == LinkingObject.Id));
+				break;
+			case Type _ when type == typeof(Liability):
+				SelectedItems = borrowers.Where(borrower => borrower.BorrowerLiabilities.Any(liability => liability.LiabilityId == LinkingObject.Id));
+				break;
+			case Type _ when type == typeof(Expense):
+				SelectedItems = borrowers.Where(borrower => borrower.BorrowerExpenses.Any(expense => expense.ExpenseId == LinkingObject.Id));
+				break;
+			case Type _ when type == typeof(RealEstateOwned):
+				SelectedItems = borrowers.Where(borrower => borrower.BorrowerREOs.Any(reo => reo.REOId == LinkingObject.Id));
+				break;
+		};
+
+		if(SelectedItems.Count() == 0)
+		{
+			SelectedItems = borrowers.Where(borrower => borrower.IsPrimaryBorrower);
+
+			ValueChanged(SelectedItems);
+		}
+
+		Class = Editable ? "" : "disabled";
+	}
+
+	public void ValueChanged(IEnumerable<Borrower> changedValues)
+	{
+		var type = LinkingObject!.GetType();
+
+		foreach (var borrower in changedValues)
+		{
+			switch (type)
+			{
+				//TODO check if the borrower already has links, if they do continue
+				case Type _ when type == typeof(Asset):
+					Asset asset = (LinkingObject as Asset)!;
+					int assetId = asset.Id;
+					if (borrower.BorrowerAssets.Any(asset => asset.AssetId == assetId) 
+						|| borrower.BorrowerAssets.Any(a => a.Asset == asset))
+					{
+						continue;
+					}
+
+					if (assetId > 0 && borrower.Id > 0 && !borrower.BorrowerAssets.Any(asset => asset.AssetId == assetId))
+					{
+						borrower.BorrowerAssets.Add(new(assetId, borrower.Id));
+					}
+					else if (borrower.Id > 0 && assetId <= 0 && !borrower.BorrowerAssets.Any(a => a.Asset == asset))
+					{
+						borrower.BorrowerAssets.Add(new(asset, borrower.Id));
+					}
+					else if(borrower.Id <= 0 && assetId > 0)
+					{
+						borrower.BorrowerAssets.Add(new(assetId, borrower));
+					}
+					else
+					{
+						borrower.BorrowerAssets.Add(new(asset, borrower));
+					}
+
+					break;
+
+				case Type _ when type == typeof(Gift):
+					Gift gift = (LinkingObject as Gift)!;
+					int giftId = gift.Id;
+					if (borrower.BorrowerGifts.Any(gift => gift.GiftId == giftId)
+						|| borrower.BorrowerGifts.Any(a => a.Gift == gift))
+					{
+						continue;
+					}
+
+					if (giftId > 0 && borrower.Id > 0 && !borrower.BorrowerGifts.Any(gift => gift.GiftId == giftId))
+					{
+						borrower.BorrowerGifts.Add(new(giftId, borrower.Id));
+					}
+					else if (borrower.Id > 0 && giftId <= 0 && !borrower.BorrowerGifts.Any(a => a.Gift == gift))
+					{
+						borrower.BorrowerGifts.Add(new(gift, borrower.Id));
+					}
+					else if (borrower.Id <= 0 && giftId > 0)
+					{
+						borrower.BorrowerGifts.Add(new(giftId, borrower));
+					}
+					else
+					{
+						borrower.BorrowerGifts.Add(new(gift, borrower));
+					}
+
+					break;
+				case Type _ when type == typeof(Liability):
+					Liability liability = (LinkingObject as Liability)!;
+					int liabilityId = liability.Id;
+
+					if (borrower.BorrowerLiabilities.Any(liability => liability.LiabilityId == liabilityId) 
+						|| borrower.BorrowerLiabilities.Any(l => l.Liability == liability))
+					{
+						continue;
+					}
+
+					if (liabilityId > 0 && borrower.Id > 0 && !borrower.BorrowerLiabilities.Any(liability => liability.LiabilityId == liabilityId))
+					{
+						borrower.BorrowerLiabilities.Add(new(liabilityId, borrower.Id));
+					}
+					else if (borrower.Id > 0 && liabilityId <= 0 && !borrower.BorrowerLiabilities.Any(l => l.Liability == liability))
+					{
+						borrower.BorrowerLiabilities.Add(new(liability, borrower.Id));
+					}
+					else if (borrower.Id <= 0 && liabilityId > 0)
+					{
+						borrower.BorrowerLiabilities.Add(new(liabilityId, borrower));
+					}
+					else
+					{
+						borrower.BorrowerLiabilities.Add(new(liability, borrower));
+					}
+
+					break;
+				case Type _ when type == typeof(Expense):
+					Expense expense = (LinkingObject as Expense)!;
+					int expenseId = expense!.Id;
+					if (borrower.BorrowerExpenses.Any(expense => expense.ExpenseId == expenseId)
+						|| borrower.BorrowerExpenses.Any(e => e.Expense == expense))
+					{
+						continue;
+					}
+
+					if (expenseId > 0 && borrower.Id > 0 && !borrower.BorrowerExpenses.Any(expense => expense.ExpenseId == expenseId))
+					{
+						borrower.BorrowerExpenses.Add(new(expenseId, borrower.Id));
+					}
+					else if (borrower.Id > 0 && expenseId <= 0 && !borrower.BorrowerExpenses.Any(e => e.Expense == expense))
+					{
+						borrower.BorrowerExpenses.Add(new(expense, borrower.Id));
+					}
+					else if (borrower.Id <= 0 && expenseId > 0)
+					{
+						borrower.BorrowerExpenses.Add(new(expenseId, borrower));
+					}
+					else
+					{
+						borrower.BorrowerExpenses.Add(new(expense, borrower));
+					}
+
+					break;
+				case Type _ when type == typeof(RealEstateOwned):
+					RealEstateOwned reo = (LinkingObject as RealEstateOwned)!;
+					int REOId = reo.Id;
+					if (borrower.BorrowerREOs.Any(r => r.REOId == REOId)
+						|| borrower.BorrowerREOs.Any(r => r.REO == reo))
+					{
+						continue;
+					}
+
+					if (REOId > 0 && borrower.Id > 0 && !borrower.BorrowerREOs.Any(r => r.REOId == REOId))
+					{
+						borrower.BorrowerREOs.Add(new(REOId, borrower.Id));
+					}
+					else if (borrower.Id > 0 && REOId <= 0 && !borrower.BorrowerREOs.Any(r => r.REO == reo))
+					{
+						borrower.BorrowerREOs.Add(new(reo, borrower.Id));
+					}
+					else if (borrower.Id <= 0 && REOId > 0)
+					{
+						borrower.BorrowerREOs.Add(new(REOId, borrower));
+					}
+					else
+					{
+						borrower.BorrowerREOs.Add(new(reo, borrower));
+					}
+
+					break;
+			};
+		}
+
+		IEnumerable<Borrower> nonSelectedBorrowers = Items.Where(borrower => !changedValues.Select(borrower => borrower.Id).Contains(borrower.Id));
+
+		foreach (var borrower in nonSelectedBorrowers)
+		{
+			switch (type)
+			{
+				case Type _ when type == typeof(Asset):
+					Asset asset = (LinkingObject as Asset)!;
+					var assetsToRemove = borrower.BorrowerAssets
+						.Where(item => item.AssetId == LinkingObject.Id).ToList();
+
+					assetsToRemove.ForEach(x =>
+					{
+					x.Deleted = true;
+					borrower.BorrowerAssets.Remove(x);
+					});
+
+					LoanService!.LoanFile.DeletedRecords.AddRange(assetsToRemove);
+					break;
+				case Type _ when type == typeof(Gift):
+					Gift gift = (LinkingObject as Gift)!;
+					var giftToRemove = borrower.BorrowerGifts
+						.Where(item => item.GiftId == LinkingObject.Id).ToList();
+
+					giftToRemove.ForEach(x =>
+					{
+						x.Deleted = true;
+						borrower.BorrowerGifts.Remove(x);
+					});
+
+					LoanService!.LoanFile.DeletedRecords.AddRange(giftToRemove);
+					break;
+				case Type _ when type == typeof(Liability):
+					Liability liability = (LinkingObject as Liability)!;
+					var liabilitiesToRemove = borrower.BorrowerLiabilities
+						.Where(item => item.LiabilityId == LinkingObject.Id).ToList();
+
+					liabilitiesToRemove.ForEach(x =>
+					{
+					x.Deleted = true;
+					borrower.BorrowerLiabilities.Remove(x);
+					});
+
+					LoanService!.LoanFile.DeletedRecords.AddRange(liabilitiesToRemove);
+					break;
+				case Type _ when type == typeof(Expense):
+					Expense expense = (LinkingObject as Expense)!;
+					var expensesToRemove = borrower.BorrowerExpenses
+						.Where(item => item.ExpenseId == LinkingObject.Id).ToList();
+
+					expensesToRemove.ForEach(x =>
+					{
+						x.Deleted = true;
+						borrower.BorrowerExpenses.Remove(x);
+					});
+
+					LoanService!.LoanFile.DeletedRecords.AddRange(expensesToRemove);
+					break;
+				case Type _ when type == typeof(RealEstateOwned):
+					RealEstateOwned reo = (LinkingObject as RealEstateOwned)!;
+					var reosToRemove = borrower.BorrowerREOs
+						.Where(item => item.REOId == LinkingObject.Id).ToList();
+
+					reosToRemove.ForEach(x =>
+					{
+					x.Deleted = true;
+					borrower.BorrowerREOs.Remove(x);
+					});
+
+					LoanService!.LoanFile.DeletedRecords.AddRange(reosToRemove);
+					break;
+			};
+		}
+	}
+}

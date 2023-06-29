@@ -40,5 +40,9 @@ State.Subscribe<string>("myKey", newValue => {
 ```
 
 
+# Reflective Components
+Refelective components utilize the data models that we pass into.
+
+
 
 

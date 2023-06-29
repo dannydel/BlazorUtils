@@ -1,0 +1,70 @@
+﻿@inherits BaseInputField
+
+<MudElement HtmlTag="div">
+	<AmresText Typo="AmresTypo.Title12">
+		@Label
+		@if (Required)
+		{
+			<span class="mud-error-text"> *</span>
+		}
+	</AmresText>
+		<MudRadioGroup @bind-SelectedOption="SelectedRadio"
+				   Class="@Class"
+				   Style="@Style"
+				   Culture="@Culture"
+				   Required="@Required"
+				   RequiredError="@(CommonFunctions.RequiredErrorMessage)">
+		<MudRadio Disabled="@(Disabled || ReadOnly)" Option="true"  Size="@Size.Small" Dense="true">Yes</MudRadio>
+		<MudRadio Disabled="@(Disabled || ReadOnly)" Option="false" Size="@Size.Small" Dense="true">No</MudRadio>
+	</MudRadioGroup>
+</MudElement>
+
+@code {
+
+	[Parameter]
+	public Action? OnChangeEvent { get; set; }
+
+	public readonly DisplayInputType DisplayInputType = DisplayInputType.BooleanRadio;
+
+	private bool _selectedRadio;
+	public bool SelectedRadio
+	{
+		get => _selectedRadio;
+		set
+		{
+			UpdateValue(value);
+		}
+	}
+
+	protected override void OnParametersSet()
+	{
+		base.OnParametersSet();
+
+		if (PropertyInfo == null)
+		{
+			PropertyInfo = PropertyObject!.GetType().GetProperty(PropertyName!);
+		}
+
+		_selectedRadio = PropertyObject == null ? false : bool.Parse(PropertyInfo!.GetValue(PropertyObject)!.ToString() ?? "false");
+
+		StateHasChanged();
+	}
+
+	private void UpdateValue(bool value)
+	{
+		_selectedRadio = value;
+
+		if (PropertyObject != null)
+		{
+			PropertyInfo!.SetValue(PropertyObject, value);
+		}
+
+		if (Required)
+		{
+			_ = LoanSvc!.ValidateLoan();
+
+		}
+
+		OnChangeEvent?.Invoke();
+	}
+}

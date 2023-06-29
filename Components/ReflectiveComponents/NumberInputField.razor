@@ -1,0 +1,124 @@
+﻿@typeparam T
+@inherits BaseInputField
+
+<MudElement HtmlTag="div">
+	<AmresText Typo="AmresTypo.Title12">
+		@Label
+		@if (Required)
+		{
+			<span class="mud-error-text"> *</span>
+		}
+	</AmresText>
+	<MudNumericField HideSpinButtons="true"
+					 T="T"
+					 @bind-Value="NumericValue"
+					 Variant="Variant.Outlined"
+					 Class="@Class"
+					 Margin="Margin.Dense"
+					 Style="@Style"
+					 Format="@Format"
+					 Adornment="@Adornment"
+					 Culture="@Culture"
+					 AdornmentIcon="@AdornmentIcon"
+					 Disabled="@Disabled"
+					 ReadOnly="@ReadOnly"
+					 Placeholder="@Placeholder"
+					 Required="@Required"
+					 RequiredError="@(CommonFunctions.RequiredErrorMessage)"
+					 Clearable="@Clearable"
+					 DebounceInterval="@DebounceInterval" />
+</MudElement>
+
+
+@code
+{
+	[Parameter]
+	public Action? OnChangeEvent { get; set; }
+
+	private T? _defaultValue = default(T);
+	[Parameter]
+	public T? DefaultValue{
+		get => _defaultValue;
+		set{
+			_value = value;
+			_defaultValue = value;
+		}
+	}
+
+	private T? _value = default(T?);
+	public T? NumericValue
+	{
+		get => _value;
+		set => TextChanged(value);
+	}
+
+	public readonly DisplayInputType DisplayInputType = DisplayInputType.NumberInput;
+
+	private RenderFragment? CustomRender { get; set; }
+	protected override void OnParametersSet()
+	{
+		bool IsNullable = false;
+
+		base.OnParametersSet();
+
+		if (PropertyInfo == null)
+		{
+			PropertyInfo = PropertyObject!.GetType().GetProperty(PropertyName!);
+		}
+
+		if (Nullable.GetUnderlyingType(PropertyInfo!.PropertyType) == null)
+		{
+			IsNullable = true;
+		}
+
+		SetDefaultValue();
+	}
+
+	private void SetDefaultValue()
+	{
+		if (PropertyObject == null)
+		{
+			_value = default(T);
+		}
+		else
+		{
+			object? tempValue = PropertyInfo!.GetValue(PropertyObject);
+
+			_value = tempValue == null ? _defaultValue : (T?)tempValue;
+
+			PropertyInfo!.SetValue(PropertyObject, _value);
+		}
+	}
+
+
+	private void TextChanged(T? newValue)
+	{
+		_value = newValue;
+
+		if (newValue != null)
+		{
+			PropertyInfo!.SetValue(PropertyObject, newValue);
+
+			if (Required)
+			{
+				_ = LoanSvc!.ValidateLoan();
+			}
+
+			OnChangeEvent?.Invoke();
+
+			StateHasChanged();
+		}
+		else if (PropertyInfo!.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>) && newValue is null)
+		{
+			PropertyInfo!.SetValue(PropertyObject, null);
+			OnChangeEvent?.Invoke();
+
+			if (Required)
+			{
+				_ = LoanSvc!.ValidateLoan();
+			}
+
+			StateHasChanged();
+		}
+	}
+}

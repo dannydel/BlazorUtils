@@ -1,0 +1,31 @@
+﻿@typeparam T
+
+<MudSelect Value="Value"
+		   ValueChanged="OnValueChanged"
+		   Class="mb-5" 
+		   T="string" 
+		   Variant="Variant.Outlined" 
+		   Margin="Margin.Dense"
+		   Placeholder="Select">
+	@foreach (var method in Enum.GetNames(typeof(T)))
+	{
+		<MudSelectItem Value="@method">@method</MudSelectItem>
+	}
+</MudSelect>
+
+@code {
+	[Parameter]
+	public string? Value{ get; set; }
+
+	[Parameter]
+	public EventCallback<string>? ValueChanged { get; set; }
+
+	private async void OnValueChanged(string value)
+	{
+		Value = value;
+
+		await ValueChanged?.InvokeAsync();
+
+		StateHasChanged();
+	}
+}

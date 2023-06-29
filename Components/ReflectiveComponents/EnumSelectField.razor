@@ -1,0 +1,35 @@
+﻿@inherits BaseEnumField
+<MudElement HtmlTag="div">
+	<AmresText Typo="AmresTypo.Title12">
+		@Label
+		@if (Required && !string.IsNullOrWhiteSpace(Label))
+		{
+			<span class="mud-error-text"> *</span>
+		}
+	</AmresText>
+	<MudSelect T="DisplayField" 
+					 @bind-Value="@SelectedValue"
+					 ToStringFunc="@(e => e == null ? null : e.Display)"
+					 Placeholder="@($"Select {(PropertyInfo?.GetCustomAttribute<DisplayAttribute>()?.GetName() ?? PropertyInfo!.Name)}")"
+					 Class="@Class"
+					 Style="@Style"
+					 Margin="Margin.Dense"
+					 Adornment="@Adornment"
+					 Format="@Format"
+					 Culture="@Culture"
+					 AdornmentIcon="@AdornmentIcon"
+					 Variant="Variant.Outlined"
+					 Disabled="@Disabled" 
+					 ReadOnly="@ReadOnly"
+					 Required="@Required"
+					 RequiredError="@(CommonFunctions.RequiredErrorMessage)" >
+						 @foreach(var value in Values){
+							 <MudSelectItem Value="value">@value.Display</MudSelectItem>
+						 }
+					 </MudSelect>
+</MudElement>
+
+@code{
+	public readonly DisplayInputType DisplayInputType = DisplayInputType.EnumSelect;
+}
+

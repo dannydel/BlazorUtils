@@ -1,0 +1,32 @@
+﻿@inherits BaseEnumField
+
+<MudElement HtmlTag="div">
+	@if(!HideLabel){
+		<AmresText Typo="AmresTypo.Title12">@(PropertyInfo?.GetCustomAttribute<DisplayAttribute>()?.GetName() ?? PropertyInfo!.Name)
+			@if (Required)
+			{
+				<span class="mud-error-text"> *</span>
+			}
+		</AmresText>
+	}
+		<MudRadioGroup T="DisplayField"
+				   @bind-SelectedOption="SelectedValue"
+				   Class="@Class"
+				   Style="@Style"
+				   Culture="@Culture"
+				   Required="@Required"
+				   RequiredError="@(CommonFunctions.RequiredErrorMessage)">
+				<ChildContent>
+					<MudStack Spacing="0">
+						@foreach (var value in Values)
+						{
+							<MudRadio Option="value" Disabled="@ReadOnly" T="DisplayField" Dense="true">@value.Display</MudRadio>
+						}
+					</MudStack>					
+				</ChildContent>
+	</MudRadioGroup>
+</MudElement>
+
+@code{
+	public readonly DisplayInputType DisplayInputType = DisplayInputType.EnumRadioGroup;
+}

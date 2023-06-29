@@ -1,0 +1,183 @@
+﻿@typeparam T
+@inherits BaseInputField
+
+@if (PropertyObject == null)
+{
+	<MudElement HtmlTag="@HtmlTag" Class="mb-4">
+		<MudInputLabel Class="mb-2">@Label</MudInputLabel>
+		<MudTextField Class="disabled" Margin="Margin.Dense" Variant="Variant.Outlined" T="@T" Disabled="@Disabled" ReadOnly="true" Text="@DisplayValue"></MudTextField>
+	</MudElement>
+}
+else
+{
+	<CascadingValue Value="@PropertyInfo">
+		@EditableField
+	</CascadingValue>
+}
+
+@code {
+	[CascadingParameter]
+	public bool Editable { get; set; }
+
+	[Parameter]
+	public bool EditableOverride{get;set;}
+
+	[Parameter]
+	public string HtmlTag { get; set; } = "div";
+
+	[Parameter]
+	public RenderFragment? EditableField { get; set; }
+
+	[Parameter]
+	public MudBlazor.Converter<string, T>? Converter { get; set; }
+
+	[Parameter]
+	public Action? OnChangeEvent { get; set; }
+
+	[Parameter]
+	public DisplayInputType DisplayInputType{ get; set; }
+
+	public string? DisplayValue { get; set; }
+
+	protected override void OnParametersSet()
+	{
+		base.OnParametersSet();
+
+		T? propValue;
+
+		if (PropertyInfo == null)
+		{
+			PropertyInfo = PropertyObject!.GetType().GetProperty(PropertyName!);
+		}
+
+		if(PropertyObject == null)
+		{
+			propValue = default(T);
+		}
+		else
+		{
+			object? tempValue = PropertyInfo!.GetValue(PropertyObject);
+			if(tempValue != null && tempValue.GetType() == typeof(DateOnly) && typeof(T) == typeof(DateTime))
+			{
+				propValue = (T)(object)DateTime.Parse(tempValue?.ToString() ?? DateTime.Now.ToString());
+			}
+			else if (tempValue != null && tempValue.GetType() == typeof(DateOnly))
+			{
+				propValue = (T)(object)DateOnly.FromDateTime(DateTime.Parse(tempValue?.ToString() ?? DateTime.Now.ToString()));
+			}
+			else
+			{
+				propValue = tempValue == null ? default(T) : (T)tempValue;
+			}
+		}
+
+		if(Converter != null)
+		{
+			DisplayValue = propValue == null ? string.Empty : Converter.Get(propValue);
+		}
+		else
+		{
+			DisplayValue = propValue?.ToString() ?? string.Empty;
+		}
+
+		if (Mask != null)
+		{
+			Mask?.SetText(DisplayValue);
+		}
+
+		if(EditableField == null)
+		{
+			EditableField = GenerateRenderFragment();
+		}
+
+		if (EditableOverride)
+		{
+			Editable = true;
+		}
+
+		StateHasChanged();
+	}
+
+	private RenderFragment GenerateRenderFragment() => builder =>
+	{
+		if (typeof(T).IsEnum && DisplayInputType == DisplayInputType.EnumSelect)
+		{
+			builder.OpenComponent<EnumSelectField>(0);
+			builder.AddAttribute(1, "GroupName", GroupName);
+			builder.AddAttribute(2, "ConvertValueToString", ConvertValueToString);
+		}
+		else if(typeof(T).IsEnum && DisplayInputType == DisplayInputType.EnumSearchSelect)
+		{
+			builder.OpenComponent<EnumSearchSelectField>(0);
+			builder.AddAttribute(1, "GroupName", GroupName);
+		}
+		else if (typeof(T).IsEnum && DisplayInputType == DisplayInputType.EnumRadioGroup)
+		{
+			builder.OpenComponent<EnumRadioGroup>(0);
+			builder.AddAttribute(1, "GroupName", GroupName);
+		}
+		else if (typeof(T).IsEnum)
+		{
+			//-- If user did not put a DisplayInputType on the DisplayField and is Enum then default.
+			builder.OpenComponent<EnumSelectField>(0);
+			builder.AddAttribute(1, "GroupName", GroupName);
+		}
+		else if (IsNumericType())
+		{
+			builder.OpenComponent<NumberInputField<T>>(0);
+			builder.AddAttribute(1, "DebounceInterval", DebounceInterval);
+		}
+		else if (IsBoolType() && DisplayInputType == DisplayInputType.BooleanInput )
+		{
+			builder.OpenComponent<BooleanInputField>(0);
+		}
+		else if (IsBoolType() && DisplayInputType == DisplayInputType.BooleanRadio)
+		{
+			builder.OpenComponent<BooleanRadioField>(0);
+		}
+		else if (IsBoolType())
+		{
+			builder.OpenComponent<BooleanInputField>(0);
+		}
+		else
+		{
+			builder.OpenComponent<TextInputField<T>>(0);
+			builder.AddAttribute(1, "DebounceInterval", DebounceInterval);
+			builder.AddAttribute(2, "MaxLength", MaxLength);
+		}
+
+		if (!IsBoolType())
+		{
+			builder.AddAttribute(1, "Adornment", Adornment);
+			builder.AddAttribute(2, "AdornmentIcon", AdornmentIcon);
+			builder.AddAttribute(3, "Format", Format);
+		}
+
+		var classSuffix = !Editable ? " disabled" : "";
+
+		builder.AddAttribute(1, "PropertyObject", PropertyObject);
+		builder.AddAttribute(2, "Index", Index != 0 ? Index : 1);
+		builder.AddAttribute(3, "Disabled", Disabled);
+
+		builder.AddAttribute(4, "ReadOnly", !Editable);
+		builder.AddAttribute(5, "OnChangeEvent", OnChangeEvent);
+		builder.AddAttribute(6, "Class", Class + classSuffix);
+		builder.AddAttribute(7, "HideLabel", HideLabel);
+		builder.AddAttribute(8, "FireFirstRenderChangeEvent", FireFirstRenderChangeEvent);
+		builder.AddAttribute(9, "Required", Required);
+		builder.AddAttribute(10, "InputType", InputType);
+		builder.AddAttribute(11, "Mask", Mask);
+		builder.AddAttribute(12, "Placeholder", Placeholder);
+
+		builder.CloseComponent();
+	};
+
+	private bool IsNumericType() => typeof(T) == typeof(int) ||
+	typeof(T) == typeof(double) ||
+	typeof(T) == typeof(decimal) ||
+	Nullable.GetUnderlyingType(typeof(T)) == typeof(int) ||
+	Nullable.GetUnderlyingType(typeof(T)) == typeof(double) ||
+	Nullable.GetUnderlyingType(typeof(T)) == typeof(decimal);
+
+	private bool IsBoolType() => typeof(T) == typeof(bool);
+}

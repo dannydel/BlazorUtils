@@ -1,0 +1,53 @@
+﻿@typeparam T
+
+<div>
+	<AmresText Typo="AmresTypo.Title16M">@Name</AmresText>
+	@foreach (var loanType in Items ?? new())
+	{
+		<div @key="loanType">
+
+			<MudCheckBox T="bool" CheckedChanged="isChecked => OnItemsChanged(loanType, isChecked)" Checked="loanType.Checked"
+				 Dense="true" Label="@loanType.Name" />
+		</div>
+	}
+</div>
+
+@code {
+
+	[Parameter]
+	public string? Name { get; set; }
+
+	[Parameter]
+	public List<DisplayCheckBox> Items { get; set; } = new();
+
+	[Parameter]
+	public EventCallback<List<DisplayCheckBox>> ItemsChanged { get; set; }
+
+	[Parameter]
+	public string? DefaultValue { get; set; }
+
+	protected override void OnInitialized()
+	{
+		Items?.Clear();
+
+		foreach (T item in Enum.GetValues(typeof(T)))
+		{
+			var name = typeof(T).GetField(item?.ToString() ?? "")?.GetCustomAttribute<DisplayAttribute>()?.GetName() ?? item?.ToString()!;
+			Items?.Add(new()
+				{
+					Name = name,
+					Checked = item?.ToString() == DefaultValue?.ToString(),
+					EnumName = item?.ToString()
+				});
+		}
+
+		Items?.Reverse();
+	}
+
+	public async Task OnItemsChanged(DisplayCheckBox item, bool isChecked)
+	{
+		item.Checked = isChecked;
+
+		await ItemsChanged.InvokeAsync(Items);
+	}
+}

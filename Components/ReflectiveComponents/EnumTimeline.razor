@@ -1,0 +1,132 @@
+﻿@using Amres.WebPortal.Shared.Components.Signup
+@using static Amres.WebPortal.Shared.Components.Inputs.BaseEnumField;
+
+<MudTimeline TimelineOrientation="Orientation" TimelinePosition="Position" Reverse="Reverse">
+	@foreach(var step in Steps)
+	{
+		Color stepColor = Color.Default;
+
+		@if (step.IsSelected)
+		{
+			stepColor = SelectedColor;
+		}
+		else if (step.StepFinished)
+		{
+			stepColor = DefaultColor;
+		}
+
+		<MudTimelineItem Color="stepColor" >
+			<ItemContent>
+				@(ShowContent ? step.Display : "")
+			</ItemContent>
+		</MudTimelineItem>
+	}
+</MudTimeline>
+@code {
+
+	[Parameter, EditorRequired]
+	public string? PropertyName { get; set; }
+
+	[Parameter, EditorRequired]
+	public object? PropertyObject { get; set; }
+
+	[Parameter]
+	public TimelineOrientation Orientation { get; set; } = TimelineOrientation.Vertical;
+
+	[Parameter]
+	public TimelinePosition Position { get; set; } = TimelinePosition.Top;
+
+	[Parameter]
+	public Color DefaultColor { get; set; } = Color.Primary;
+
+	[Parameter]
+	public Color SelectedColor { get; set; } = Color.Info;
+
+	[Parameter]
+	public int SelectedIndex { get; set; }
+
+	[Parameter]
+	public bool Reverse{ get; set; }
+
+	/// <summary>
+	/// Comma delimited list of enum properties you want to skip in enum object.
+	/// </summary>
+	[Parameter]
+	public List<Enum>? SkipItems { get; set; } = new();
+
+	[Parameter]
+	public bool ShowContent { get; set; } = true;
+
+	public List<TimelineStep> Steps { get; set; } = new();
+
+	private Type? _propertyType;
+
+	private PropertyInfo? PropertyInfo { get; set; }
+
+
+	protected override void OnInitialized()
+	{
+		Steps.Clear();
+
+		if (PropertyInfo == null)
+		{
+			PropertyInfo = PropertyObject!.GetType().GetProperty(PropertyName!);
+		}
+
+		_propertyType = PropertyInfo!.PropertyType.IsGenericType && PropertyInfo.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>)
+			? Nullable.GetUnderlyingType(PropertyInfo.PropertyType) ?? PropertyInfo.PropertyType
+			: PropertyInfo.PropertyType;
+
+		int index = 0;
+		foreach (object enumValue in Enum.GetValues(_propertyType))
+		{
+			if (!IsInSkipList(enumValue))
+			{
+				Steps.Add(new()
+					{
+						Display = _propertyType.GetField(enumValue?.ToString() ?? "")?.GetCustomAttribute<DisplayAttribute>()?.GetName() ?? enumValue?.ToString()!,
+						Index = index,
+						EnumValue = enumValue?.ToString() ?? "",
+						Color = index == SelectedIndex ? Color.Info : Color.Primary,
+						Description = enumValue?.GetPropertyDescription(_propertyType.Name)
+					});
+
+				index++;
+			}
+		}
+
+		base.OnInitialized();
+	}
+
+	public EventCallback<int> SelectedIndexChanged{ get; set; }
+
+	protected override void OnParametersSet()
+	{
+		foreach(var step in Steps)
+		{
+			step.IsSelected = false;
+
+			//-- any step before the current step.
+			step.StepFinished = Steps.IndexOf(step) < SelectedIndex;
+		}
+
+		Steps[SelectedIndex].IsSelected = true;
+
+		base.OnParametersSet();
+	}
+
+
+	private bool IsInSkipList(object enumItem)
+	{
+		return SkipItems?.Any(x => x.ToString() == enumItem.ToString()) ?? false;
+	}
+
+	public class TimelineStep : DisplayField
+	{
+		public string? Description { get; set; }
+		public Severity Severity{ get; set; }
+		public Color Color { get; set; }
+		public bool IsSelected { get; set; }
+		public bool StepFinished{ get; set; }
+	}
+}
